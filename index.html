@@ -15,7 +15,7 @@
             background: #f5f7fa;
         }
         .upload-box {
-            max-width: 500px;
+            max-width: 600px;
             margin: 60px auto;
             padding: 30px;
             background: white;
@@ -23,33 +23,57 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         }
         .logo {
-            width: 80px;
+            width: 140px;
             margin-bottom: 15px;
+        }
+        .file-item {
+            text-align: left;
+            margin-top: 15px;
+        }
+        .file-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .file-status {
+            font-size: 0.8rem;
         }
     </style>
 </head>
 <body>
 
 <div class="upload-box text-center">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" class="logo">
+    <img src="https://raw.githubusercontent.com/mksp-data/upload-data-clients/main/klarz-logo.png" class="logo" alt="Klarz">
 
-    <h3 class="mb-3">Envio de Arquivos</h3>
-    <p id="clienteInfo" class="text-muted"></p>
+    <h3 class="mb-2">Envio de Arquivos</h3>
+    <p id="clienteInfo" class="text-muted mb-4"></p>
 
-    <input type="file" id="fileInput" class="form-control mb-3">
+    <div class="mb-3 text-start">
+        <label for="fileInput" class="form-label">Selecione um ou mais arquivos</label>
+        <input type="file" id="fileInput" class="form-control" multiple>
+        <div class="form-text">
+            Tipos permitidos: .xlsx, .xls, .csv, .txt, .parquet, .json, .xml, .tsv — até 300 MB por arquivo.
+        </div>
+    </div>
 
-    <button class="btn btn-primary w-100" onclick="upload()">Enviar arquivo</button>
+    <button class="btn btn-primary w-100" onclick="upload()">Enviar arquivos</button>
 
     <div id="status" class="mt-3"></div>
+    <div id="filesContainer" class="mt-3"></div>
 </div>
 
 <script>
     // Aqui é onde vão ser inseridos os outros clientes
     const clientes = {
-        terranordeste: "https://mkspclientstorage.blob.core.windows.net/entrada-terranordeste?sp=racwl&st=2026-01-01T03:00:00Z&se=2050-01-01T03:00:00Z&spr=https&sv=2024-11-04&sr=c&sig=c7h%2F2VA42%2FtH4dOmJq7p2Cvkh6cVEIsb%2F6goLv07D1c%3D",
-        cliente2: "url_do_cliente2",
-        cliente3: "url_do_cliente3",
+        terranordeste: "https://mkspclientstorage.blob.core.windows.net/entrada-terranordeste?sp=rcl&st=2026-01-01T03:00:00Z&se=2050-01-01T03:00:00Z&spr=https&sv=2024-11-04&sr=c&sig=i2mXNOIGYwPtuz1hFtjw0V2lb3vfQ1tMtT5TUWsQqdE%3D"
+        // cliente2: "URL_SAS_DO_CONTAINER_CLIENTE2",
+        // cliente3: "URL_SAS_DO_CONTAINER_CLIENTE3",
     };
+
+    const allowedExtensions = [
+        "xlsx", "xls", "csv", "txt", "parquet", "json", "xml", "tsv"
+    ];
+
+    const MAX_SIZE_BYTES = 300 * 1024 * 1024; // 300 MB
 
     const params = new URLSearchParams(window.location.search);
     const cliente = params.get("cliente");
@@ -57,50 +81,157 @@
 
     const clienteInfo = document.getElementById("clienteInfo");
     const statusEl = document.getElementById("status");
+    const filesContainer = document.getElementById("filesContainer");
 
     if (!cliente || !sasUrl) {
-        clienteInfo.innerHTML = "Cliente inválido ou não configurado.";
+        clienteInfo.innerHTML = "Cliente inválido ou não configurado. Verifique o link.";
         clienteInfo.classList.add("text-danger");
     } else {
         clienteInfo.innerHTML = "Cliente: <strong>" + cliente + "</strong>";
     }
 
+    function getExtension(filename) {
+        const parts = filename.split(".");
+        return parts.length > 1 ? parts.pop().toLowerCase() : "";
+    }
+
+    function createFileItem(file) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "file-item";
+
+        const nameEl = document.createElement("div");
+        nameEl.className = "file-name";
+        nameEl.textContent = file.name;
+
+        const progress = document.createElement("div");
+        progress.className = "progress mt-1";
+        const bar = document.createElement("div");
+        bar.className = "progress-bar";
+        bar.style.width = "0%";
+        progress.appendChild(bar);
+
+        const status = document.createElement("div");
+        status.className = "file-status text-muted mt-1";
+        status.textContent = "Aguardando envio...";
+
+        wrapper.appendChild(nameEl);
+        wrapper.appendChild(progress);
+        wrapper.appendChild(status);
+
+        return { wrapper, bar, status };
+    }
+
     async function upload() {
         statusEl.innerHTML = "";
         statusEl.className = "";
+        filesContainer.innerHTML = "";
 
         if (!sasUrl) {
-            statusEl.innerHTML = "<span class='text-danger'>Configuração inválida.</span>";
+            statusEl.innerHTML = "<span class='text-danger'>Configuração de cliente inválida.</span>";
             return;
         }
 
-        const file = document.getElementById("fileInput").files[0];
-        if (!file) {
-            statusEl.innerHTML = "<span class='text-danger'>Selecione um arquivo.</span>";
+        const input = document.getElementById("fileInput");
+        const files = Array.from(input.files || []);
+
+        if (files.length === 0) {
+            statusEl.innerHTML = "<span class='text-danger'>Selecione pelo menos um arquivo.</span>";
             return;
         }
 
-        statusEl.innerHTML = "<div class='text-info'>Enviando arquivo...</div>";
+        let anyError = false;
 
-        try {
-            const [baseUrl, query] = sasUrl.split("?");
-            const uploadUrl = `${baseUrl}/${encodeURIComponent(file.name)}?${query}`;
+        for (const file of files) {
+            const ext = getExtension(file.name);
+            const fileUI = createFileItem(file);
+            filesContainer.appendChild(fileUI.wrapper);
 
-            const response = await fetch(uploadUrl, {
-                method: "PUT",
-                headers: { "x-ms-blob-type": "BlockBlob" },
-                body: file
-            });
-
-            if (response.ok) {
-                statusEl.innerHTML = "<div class='text-success'>Arquivo enviado com sucesso!</div>";
-                document.getElementById("fileInput").value = "";
-            } else {
-                const text = await response.text();
-                statusEl.innerHTML = `<div class='text-danger'>Erro: ${response.status} - ${text}</div>`;
+            // Validação de extensão
+            if (!allowedExtensions.includes(ext)) {
+                fileUI.bar.classList.add("bg-danger");
+                fileUI.bar.style.width = "100%";
+                fileUI.status.classList.remove("text-muted");
+                fileUI.status.classList.add("text-danger");
+                fileUI.status.textContent = "Tipo de arquivo não permitido.";
+                anyError = true;
+                continue;
             }
-        } catch (err) {
-            statusEl.innerHTML = `<div class='text-danger'>Erro: ${err.message}</div>`;
+
+            // Validação de tamanho
+            if (file.size > MAX_SIZE_BYTES) {
+                fileUI.bar.classList.add("bg-danger");
+                fileUI.bar.style.width = "100%";
+                fileUI.status.classList.remove("text-muted");
+                fileUI.status.classList.add("text-danger");
+                fileUI.status.textContent = "Arquivo excede o limite de 300 MB.";
+                anyError = true;
+                continue;
+            }
+
+            // Envio
+            fileUI.status.textContent = "Enviando...";
+            fileUI.bar.classList.add("bg-info");
+
+            try {
+                const [baseUrl, query] = sasUrl.split("?");
+                const uploadUrl = `${baseUrl}/${encodeURIComponent(file.name)}?${query}`;
+
+                // Usando XMLHttpRequest para ter progresso
+                await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("PUT", uploadUrl, true);
+                    xhr.setRequestHeader("x-ms-blob-type", "BlockBlob");
+
+                    xhr.upload.onprogress = (event) => {
+                        if (event.lengthComputable) {
+                            const percent = (event.loaded / event.total) * 100;
+                            fileUI.bar.style.width = `${percent.toFixed(0)}%`;
+                        }
+                    };
+
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            fileUI.bar.classList.remove("bg-info");
+                            fileUI.bar.classList.add("bg-success");
+                            fileUI.bar.style.width = "100%";
+                            fileUI.status.classList.remove("text-muted");
+                            fileUI.status.classList.add("text-success");
+                            fileUI.status.textContent = "Enviado com sucesso.";
+                            resolve();
+                        } else {
+                            fileUI.bar.classList.remove("bg-info");
+                            fileUI.bar.classList.add("bg-danger");
+                            fileUI.status.classList.remove("text-muted");
+                            fileUI.status.classList.add("text-danger");
+                            fileUI.status.textContent = `Erro ao enviar: ${xhr.status}`;
+                            anyError = true;
+                            reject(new Error("Erro HTTP " + xhr.status));
+                        }
+                    };
+
+                    xhr.onerror = () => {
+                        fileUI.bar.classList.remove("bg-info");
+                        fileUI.bar.classList.add("bg-danger");
+                        fileUI.status.classList.remove("text-muted");
+                        fileUI.status.classList.add("text-danger");
+                        fileUI.status.textContent = "Erro de rede ao enviar.";
+                        anyError = true;
+                        reject(new Error("Erro de rede"));
+                    };
+
+                    xhr.send(file);
+                });
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        if (!anyError) {
+            statusEl.innerHTML = "<span class='text-success'>Todos os arquivos foram enviados com sucesso.</span>";
+            document.getElementById("fileInput").value = "";
+        } else {
+            statusEl.innerHTML = "<span class='text-warning'>Alguns arquivos não foram enviados. Verifique as mensagens acima.</span>";
         }
     }
 </script>
