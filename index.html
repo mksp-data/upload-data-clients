@@ -475,11 +475,14 @@
         const cliente = params.get("cliente");
         const clienteData = clientes[cliente];
 
+        console.log("Cliente:", cliente, "Dados:", clienteData, "Clientes:", clientes);
+
         if (!cliente || !clienteData) {
             clienteInfo.innerHTML = "❌ Cliente inválido ou não configurado. Verifique o link.";
             clienteInfo.classList.add("text-danger");
         } else {
-            clienteInfo.innerHTML = "👤 Cliente: <strong>" + clienteData.nome + "</strong>";
+            const nomeCliente = clienteData.nome || cliente;
+            clienteInfo.innerHTML = "👤 Cliente: <strong>" + nomeCliente + "</strong>";
         }
     }
 
