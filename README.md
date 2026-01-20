@@ -10,7 +10,9 @@ Página web para clientes enviarem arquivos diretamente para **Azure Blob Storag
 - ✔ Sem login  
 - ✔ Tema escuro moderno  
 - ✔ Suporta múltiplos clientes  
-- ✔ Validação de tipos e tamanho (600MB max)  
+- ✔ Validação de tipos de arquivo personalizados
+- ✔ Renomeação automática (cliente_tipo_timestamp)
+- ✔ Limite 600MB por arquivo  
 - ✔ Barra de progresso por arquivo  
 - ✔ Drag & drop
 
@@ -18,28 +20,46 @@ Página web para clientes enviarem arquivos diretamente para **Azure Blob Storag
 
 ## 🔧 Como usar
 
-### 1. Adicionar um novo cliente
-
-Edite o arquivo `clientes.json`:
+### 1. Estrutura do clientes.json
 
 ```json
 {
-  "terranordeste": "URL_SAS_AQUI",
-  "novoCliente": "URL_SAS_DO_NOVO_CLIENTE"
+  "terranordeste": {
+    "nome": "Terra Nordeste",
+    "sas": "URL_SAS_AQUI",
+    "tiposArquivos": {
+      "pedidos": ["pedidos", "pedido"],
+      "clientes": ["clientes", "cliente"]
+    }
+  },
+  "novoCliente": {
+    "nome": "Novo Cliente",
+    "sas": "URL_SAS_AQUI",
+    "tiposArquivos": {
+      "vendas": ["vendas", "venda"],
+      "estoque": ["estoque"]
+    }
+  }
 }
 ```
 
-### 2. Gerar o SAS Token
+### 2. Gerar SAS Token
 
 No Azure:
-1. Crie um container (ex: `entrada-seuclient`)
+1. Crie container (ex: `entrada-seuclient`)
 2. Gere SAS com permissões: **Write, Create, List**
-3. Copie a URL completa do blob
+3. Copie a URL completa
 
-### 3. Compartilhe o link
+### 3. Configurar tipos de arquivo
+
+Defina no JSON quais nomes os arquivos podem ter:
+- `"pedidos": ["pedidos", "pedido"]` → aceita: `pedidos.xlsx`, `pedido_nov.xlsx`, `pedidos-tn.csv`
+- Rejeita tudo que não contém essas palavras
+
+### 4. Compartilhe o link
 
 ```
-https://seu-usuario.github.io/upload-data-clients/?cliente=novoCliente
+https://seu-usuario.github.io/upload-data-clients/?cliente=terranordeste
 ```
 
 ---
@@ -48,7 +68,7 @@ https://seu-usuario.github.io/upload-data-clients/?cliente=novoCliente
 
 ```
 ├── index.html      # Página principal
-├── clientes.json   # Configuração de clientes
+├── clientes.json   # Configuração de clientes e tipos
 └── README.md       # Este arquivo
 ```
 
@@ -58,18 +78,23 @@ https://seu-usuario.github.io/upload-data-clients/?cliente=novoCliente
 
 - Cada cliente tem SAS exclusivo
 - SAS acessa apenas seu container
+- Validação de tipos no navegador
 - Nenhum arquivo passa por servidor intermediário
-- SAS pode ter data de expiração
+- Renomeação automática padroniza nomes
+
+---
+
+## 📝 Renomeação automática
+
+Arquivos são renomeados para: **cliente_tipo_timestamp.extensao**
+
+Exemplo:
+- `pedidos_nov_2025.xlsx` → `terranordeste_pedidos_1705679400000.xlsx`
+- `clientes-tn.csv` → `terranordeste_clientes_1705679401000.csv`
 
 ---
 
 ## 🌐 Publicação
 
 GitHub Pages → Settings → Pages → Deploy from branch (main, /)
-
----
-
-## 📝 Tipos de arquivo permitidos
-
-`.xlsx`, `.xls`, `.csv`, `.txt`, `.parquet`, `.json`, `.xml`, `.tsv`
 

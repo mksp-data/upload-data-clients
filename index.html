@@ -570,16 +570,35 @@
         return icons[ext] || "📄";
     }
 
+    function detectArquivoTipo(filename, tiposArquivos) {
+        if (!tiposArquivos) return null;
+        
+        const nomeArquivo = filename.toLowerCase();
+        
+        for (const [tipo, palavrasChave] of Object.entries(tiposArquivos)) {
+            for (const palavra of palavrasChave) {
+                const regex = new RegExp(`\\b${palavra}\\b`, 'i');
+                if (regex.test(nomeArquivo)) {
+                    return tipo;
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    function renomearArquivo(filename, clienteNome, tipoArquivo) {
+        const ext = getExtension(filename);
+        const timestamp = Date.now();
+        return `${clienteNome}_${tipoArquivo}_${timestamp}.${ext}`;
+    }
+
     function createFileItem(file) {
         const wrapper = document.createElement("div");
         wrapper.className = "file-item";
 
         const nameEl = document.createElement("div");
         nameEl.className = "file-name";
-        const icon = document.createElement("span");
-        icon.className = "file-icon";
-        icon.textContent = getFileIcon(file.name);
-        nameEl.appendChild(icon);
         const nameSpan = document.createElement("span");
         nameSpan.textContent = file.name;
         nameEl.appendChild(nameSpan);
@@ -607,6 +626,7 @@
         const cliente = params.get("cliente");
         const clienteData = clientes[cliente];
         const sasUrl = clienteData ? clienteData.sas : null;
+        const tiposArquivos = clienteData ? clienteData.tiposArquivos : null;
 
         statusEl.innerHTML = "";
         statusEl.className = "";
@@ -652,13 +672,29 @@
                 continue;
             }
 
+            // Detectar tipo de arquivo
+            const tipoDetectado = tiposArquivos ? detectArquivoTipo(file.name, tiposArquivos) : null;
+            
+            if (tiposArquivos && !tipoDetectado) {
+                fileUI.bar.classList.add("bg-danger");
+                fileUI.bar.style.width = "100%";
+                const tiposValidos = Object.keys(tiposArquivos).join(", ");
+                fileUI.status.innerHTML = `<span class="status-icon">❌</span><span>Arquivo deve ser do tipo: ${tiposValidos}</span>`;
+                fileUI.status.classList.add("text-danger");
+                errorCount++;
+                continue;
+            }
+
+            // Renomear arquivo
+            const novoNome = tipoDetectado ? renomearArquivo(file.name, cliente, tipoDetectado) : file.name;
+
             // Envio
             fileUI.status.innerHTML = '<span class="status-icon">📤</span><span>Enviando...</span>';
             fileUI.bar.classList.add("bg-info");
 
             try {
                 const [baseUrl, query] = sasUrl.split("?");
-                const uploadUrl = `${baseUrl}/${encodeURIComponent(file.name)}?${query}`;
+                const uploadUrl = `${baseUrl}/${encodeURIComponent(novoNome)}?${query}`;
 
                 // Usando XMLHttpRequest para ter progresso
                 await new Promise((resolve, reject) => {
