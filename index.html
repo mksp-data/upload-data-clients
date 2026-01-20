@@ -473,13 +473,13 @@
     function initializeApp() {
         const params = new URLSearchParams(window.location.search);
         const cliente = params.get("cliente");
-        const sasUrl = clientes[cliente];
+        const clienteData = clientes[cliente];
 
-        if (!cliente || !sasUrl) {
+        if (!cliente || !clienteData) {
             clienteInfo.innerHTML = "❌ Cliente inválido ou não configurado. Verifique o link.";
             clienteInfo.classList.add("text-danger");
         } else {
-            clienteInfo.innerHTML = "👤 Cliente: <strong>" + cliente + "</strong>";
+            clienteInfo.innerHTML = "👤 Cliente: <strong>" + clienteData.nome + "</strong>";
         }
     }
 
@@ -602,7 +602,8 @@
     async function upload() {
         const params = new URLSearchParams(window.location.search);
         const cliente = params.get("cliente");
-        const sasUrl = clientes[cliente];
+        const clienteData = clientes[cliente];
+        const sasUrl = clienteData ? clienteData.sas : null;
 
         statusEl.innerHTML = "";
         statusEl.className = "";
