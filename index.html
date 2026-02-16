@@ -459,7 +459,7 @@
     const selectedFilesList = document.getElementById("selectedFilesList");
 
     // Carregar clientes do arquivo JSON
-    fetch('clientes.json')
+    fetch('clientes.json?v=' + new Date().getTime())
         .then(response => response.json())
         .then(data => {
             clientes = data;
