@@ -6,5 +6,12 @@
       "pedidos": ["pedidos", "pedido"],
       "clientes": ["clientes", "cliente"]
     }
+  },
+  "madero": {
+    "nome": "Madero",
+    "sas": "https://mkspclientstorage.blob.core.windows.net/entrada-madero?sp=rcwl&st=2026-01-02T01:27:26Z&se=2070-12-31T09:42:26Z&spr=https&sv=2024-11-04&sr=c&sig=0B%2BI5m10dNRDLC9Ry%2BkPqZTjFjhPw3rJxzocrE2QGTg%3D",
+    "tiposArquivos": {
+      "georeferencial": ["georeferencial", "geo"]
+    }
   }
 }
